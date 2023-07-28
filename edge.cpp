@@ -2,22 +2,22 @@
 
 void Edge::RQS_GetDistSum(int start_time, int end_time, double dist_q_c, double dist_q_d, vector<pair<double, double>> &q_p, bool on_edge) {
     q_p.clear();
-    
+
     for (int i = 0; i < point_set.size(); i++) {
         if (point_set[i].time < start_time || point_set[i].time > end_time) continue;
-        
+
         double dist;
-        
+
         // special case: the lixel is on the edge
         if (on_edge == true) {
             dist = fabs(point_set[i].dist_1 - dist_q_c);
-            
+
         }   else {
             dist = min(dist_q_c + point_set[i].dist_1,
                        dist_q_d + point_set[i].dist_2);
         }
         double time = fabs(point_set[i].time - (start_time + end_time) / 2.0);
-        
+
         q_p.push_back(make_pair(dist, time));
     }
 }
@@ -57,7 +57,7 @@ void Edge::InitAxis(Param::Kernel kernel_type) {
 
 void RAS::Init(Param::Kernel kernel_type) {
     InitAxis(kernel_type);
-    
+
     Item temp_item;
     vector<Item> temp_vec;
     temp_vec.resize(dist_axis.size(), temp_item);
@@ -67,7 +67,7 @@ void RAS::Init(Param::Kernel kernel_type) {
         int dist_index = (int)(lower_bound(dist_axis.begin(), dist_axis.end(), point_set[p].dist) - dist_axis.begin());
         pre_sum[time_index][dist_index] += point_set[p].item;
     }
-    
+
     for (int i = 0;i < time_axis.size(); i++) {
         for (int j = 0;j < dist_axis.size(); j++) {
             if (i > 0) pre_sum[i][j] += pre_sum[i-1][j];
@@ -99,9 +99,9 @@ Item RAS::GetDistSum(int start_time, int end_time, bool is_left, double dist_r, 
         int dist_index_2 = (int)(upper_bound(dist_axis.begin(), dist_axis.end(), dist_r) - dist_axis.begin()) - 1;
         ret = GetPreSum(time_index_1, time_index_2, dist_index_1, dist_index_2);
         return ret;
-        
+
     }   else {
-        
+
         int dist_index_1 = (int)(lower_bound(dist_axis_inv.begin(), dist_axis_inv.end(), dist_l) - dist_axis_inv.begin());
         int dist_index_2 = (int)(upper_bound(dist_axis_inv.begin(), dist_axis_inv.end(), dist_r) - dist_axis_inv.begin()) - 1;
         dist_index_1 = (int)dist_axis_inv.size() - dist_index_1 - 1;
@@ -115,11 +115,10 @@ Item RAS::GetDistSum(int start_time, int end_time, bool is_left, double dist_r, 
 
 void RTS::Init(Param::Kernel kernel_type) {
     InitAxis(kernel_type);
-    
-    test = test + point_set.size();
+
     sort(point_set.begin(), point_set.end(), PointDistCmp);
     tree_dist_root = SpatialConstruct(tree_dist_root, 0, (int)point_set.size() - 1, point_set);
-    
+
 //    for (int p = 0;p < point_set.size(); p++) {
 //        int time_index = (int)(lower_bound(time_axis.begin(), time_axis.end(), point_set[p].time) - time_axis.begin());
 //        int dist_index = (int)(lower_bound(dist_axis.begin(), dist_axis.end(), point_set[p].dist) - dist_axis.begin());
@@ -165,7 +164,6 @@ void RTS::MergeSort(vector<Point> &t, vector<Point> &s1, vector<Point> &s2) {
 // do not use &(reference)! vector.push_back will change the address
 // use return value to save the index
 int RTS::SpatialConstruct(int index, int l, int r, vector<Point> &point_set) {
-    // 7 2 3
     if (l > r) return -1;
     if (index == -1) {
         index = (int) tree_dist.size();
@@ -174,8 +172,8 @@ int RTS::SpatialConstruct(int index, int l, int r, vector<Point> &point_set) {
     }
     tree_dist[index].l_int = point_set[l].dist;
     tree_dist[index].r_int = point_set[r].dist;
-  //  cout << index << " " << l << " " << r << endl;
-    
+    //  cout << index << " " << l << " " << r << endl;
+
     if (l != r) {
         int mid = (l + r) >> 1;
         int lc = SpatialConstruct(tree_dist[index].l_child, l, mid, point_set);
@@ -205,7 +203,7 @@ int RTS::TemporalConstruct(int index, int l, int r, vector<Point> &point_set) {
     }
     tree_time[index].l_int = point_set[l].time;
     tree_time[index].r_int = point_set[r].time;
-    
+
     if (l == r) {
         tree_time[index].item = point_set[l].item;
     }   else {
@@ -226,7 +224,7 @@ Item RTS::SpatialQuery(int index, double ls, double rs, double lt, double rt) {
     if (ls <= tree_dist[index].l_int && tree_dist[index].r_int <= rs) {
         return TemporalQuery(tree_dist[index].tree_time_root, lt, rt);
     }
-    
+
     Item ret;
     if (ls <= tree_dist[tree_dist[index].l_child].r_int) ret += SpatialQuery(tree_dist[index].l_child, ls, rs, lt, rt);
     if (rs >= tree_dist[tree_dist[index].r_child].l_int) ret += SpatialQuery(tree_dist[index].r_child, ls, rs, lt, rt);
@@ -240,7 +238,7 @@ Item RTS::TemporalQuery(int index, double lt, double rt) {
     if (lt <= tree_time[index].l_int && tree_time[index].r_int <= rt) {
         return tree_time[index].item;
     }
-    
+
     Item ret;
     if (lt <= tree_time[tree_time[index].l_child].r_int) ret += TemporalQuery(tree_time[index].l_child, lt, rt);
     if (rt >= tree_time[tree_time[index].r_child].l_int) ret += TemporalQuery(tree_time[index].r_child, lt, rt);
@@ -253,7 +251,7 @@ void RFS::Init(Param::Kernel kernel_type) {
     sort(point_set.begin(), point_set.end(), PointTimeCmp);
     if (point_set.size() == 0) return;
     InitAxis(kernel_type);
-    
+
     // shift one index
     // tree_root[0] is the root of a blank tree
     // point i's root is tree_root[i+1]
@@ -266,7 +264,9 @@ void RFS::Init(Param::Kernel kernel_type) {
         tree_root[p+1] = Insert(0, (int)dist_axis.size()-1, tree_root[p], dist_index, point_set[p].item);
         timeline[p+1] = point_set[p].time;
     }
+}
 
+void RFS::SubInit() {
     double middle_time = (start_time + end_time) / 2;
     timeline_index_L_1 = (int)(lower_bound(timeline.begin(), timeline.end(), start_time) - timeline.begin());
     timeline_index_R_1 = (int)(upper_bound(timeline.begin(), timeline.end(), middle_time - EPS) - timeline.begin()) - 1;
@@ -284,7 +284,7 @@ Item RFS::GetSum(int L1, int R1, double L2, double R2) {
 Item RFS::GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l) {
     Item ret;
     if (timeline.size() == 0) return Item();
-    
+
     int time_index_1, time_index_2;
     if (start_time == this->start_time) {
         time_index_1 = timeline_index_L_1;
@@ -295,17 +295,17 @@ Item RFS::GetDistSum(int start_time, int end_time, bool is_left, double dist_r, 
     }
 
     if (is_left) {
-    //    int dist_index_1 = (int)(lower_bound(dist_axis.begin(), dist_axis.end(), dist_l) - dist_axis.begin());
-    //    int dist_index_2 = (int)(upper_bound(dist_axis.begin(), dist_axis.end(), dist_r) - dist_axis.begin()) - 1;
+        //    int dist_index_1 = (int)(lower_bound(dist_axis.begin(), dist_axis.end(), dist_l) - dist_axis.begin());
+        //    int dist_index_2 = (int)(upper_bound(dist_axis.begin(), dist_axis.end(), dist_r) - dist_axis.begin()) - 1;
         ret = GetSum(time_index_1, time_index_2, dist_l, dist_r);
         return ret;
-        
+
     }   else {
-        
-    //    int dist_index_1 = (int)(lower_bound(dist_axis_inv.begin(), dist_axis_inv.end(), dist_l) - dist_axis_inv.begin());
-    //    int dist_index_2 = (int)(upper_bound(dist_axis_inv.begin(), dist_axis_inv.end(), dist_r) - dist_axis_inv.begin()) - 1;
-    //    dist_index_1 = (int)dist_axis_inv.size() - dist_index_1 - 1;
-    //    dist_index_2 = (int)dist_axis_inv.size() - dist_index_2 - 1;
+
+        //    int dist_index_1 = (int)(lower_bound(dist_axis_inv.begin(), dist_axis_inv.end(), dist_l) - dist_axis_inv.begin());
+        //    int dist_index_2 = (int)(upper_bound(dist_axis_inv.begin(), dist_axis_inv.end(), dist_r) - dist_axis_inv.begin()) - 1;
+        //    dist_index_1 = (int)dist_axis_inv.size() - dist_index_1 - 1;
+        //    dist_index_2 = (int)dist_axis_inv.size() - dist_index_2 - 1;
         ret = GetSum(time_index_1, time_index_2, length - dist_r, length - dist_l);
         return ret;
     }
@@ -363,7 +363,7 @@ void DRFS::Init(Param::Kernel kernel_type) {
     sort(point_set.begin(), point_set.end(), PointTimeCmp);
     if (point_set.size() == 0) return;
     InitAxis(kernel_type);
-    
+
     // shift one index
     // tree_root[0] is the root of a blank tree
     // point i's root is tree_root[i+1]
@@ -379,7 +379,9 @@ void DRFS::Init(Param::Kernel kernel_type) {
         timeline[p+1] = point_set[p].time;
     }
     Hinsert = 0;
-    
+}
+
+void DRFS::SubInit() {
     double middle_time = (start_time + end_time) / 2;
     timeline_index_L_1 = (int)(lower_bound(timeline.begin(), timeline.end(), start_time) - timeline.begin());
     timeline_index_R_1 = (int)(upper_bound(timeline.begin(), timeline.end(), middle_time - EPS) - timeline.begin()) - 1;
@@ -397,7 +399,7 @@ Item DRFS::GetSum(int L1, int R1, double L2, double R2) {
 Item DRFS::GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l) {
     Item ret;
     if (timeline.size() == 0) return Item();
-    
+
     int time_index_1, time_index_2;
     if (start_time == this->start_time) {
         time_index_1 = timeline_index_L_1;
@@ -410,7 +412,7 @@ Item DRFS::GetDistSum(int start_time, int end_time, bool is_left, double dist_r,
     if (is_left) {
         ret = GetSum(time_index_1, time_index_2, dist_l, dist_r);
         return ret;
-        
+
     }   else {
         ret = GetSum(time_index_1, time_index_2, length - dist_r, length - dist_l);
         return ret;
@@ -490,5 +492,90 @@ void DRFS::SetH(int h) {
             }
         }
         oldH = h;
+    }
+}
+
+/* ------------------------------------- */
+
+void ADA::Init(Param::Kernel kernel_type) {
+    InitAxis(kernel_type);
+}
+
+Item ADA::GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l) {
+    Item ret;
+    int idx = 0;
+    if (fabs(this->start_time - start_time) < EPS) {
+        idx = 0;
+    }   else {
+        idx = 1;
+    }
+
+    if (is_left) {
+        int dist_index_1 = (int)(lower_bound(ADA_axis[idx].begin(), ADA_axis[idx].end(), dist_l) - ADA_axis[idx].begin());
+        int dist_index_2 = (int)(upper_bound(ADA_axis[idx].begin(), ADA_axis[idx].end(), dist_r) - ADA_axis[idx].begin()) - 1;
+        ret = GetPreSum(dist_index_1, dist_index_2, idx);
+        return ret;
+
+    }   else {
+        int dist_index_1 = (int)(lower_bound(ADA_axis_inv[idx].begin(), ADA_axis_inv[idx].end(), dist_l) - ADA_axis_inv[idx].begin());
+        int dist_index_2 = (int)(upper_bound(ADA_axis_inv[idx].begin(), ADA_axis_inv[idx].end(), dist_r) - ADA_axis_inv[idx].begin()) - 1;
+        dist_index_1 = (int)ADA_axis_inv[idx].size() - dist_index_1 - 1;
+        dist_index_2 = (int)ADA_axis_inv[idx].size() - dist_index_2 - 1;
+        ret = GetPreSum(dist_index_2, dist_index_1, idx);
+        return ret;
+    }
+}
+
+Item ADA::GetPreSum(int d1, int d2, int idx) {
+    Item ret;
+    if (d2 < d1) return ret;
+    ret = ADA_vector[idx][d2];
+    if (d1 > 0) ret -= ADA_vector[idx][d1 - 1];
+    return ret;
+}
+
+void ADA::SubInit() {
+    new_point_set[0].clear();
+    new_point_set[1].clear();
+    ADA_vector[0].clear();
+    ADA_axis[0].clear();
+    ADA_axis_inv[0].clear();
+    ADA_vector[1].clear();
+    ADA_axis[1].clear();
+    ADA_axis_inv[1].clear();
+    double middle_time = (start_time + end_time) / 2;
+
+    for (int p = 0;p < point_set.size(); p++) {
+        if (point_set[p].time >= start_time && point_set[p].time <= middle_time - EPS) {
+            new_point_set[0].push_back(point_set[p]);
+        }
+        if (point_set[p].time >= middle_time && point_set[p].time <= end_time) {
+            new_point_set[1].push_back(point_set[p]);
+        }
+    }
+    sort(new_point_set[0].begin(), new_point_set[0].end(), PointDistCmp);
+    sort(new_point_set[1].begin(), new_point_set[1].end(), PointDistCmp);
+
+    for (int i = 0;i < new_point_set[0].size(); i++) {
+        ADA_vector[0].push_back(new_point_set[0][i].item);
+        ADA_axis[0].push_back(new_point_set[0][i].dist_1);
+    }
+    for (int i = 0;i < new_point_set[0].size(); i++) {
+        ADA_vector[1].push_back(new_point_set[0][i].item);
+        ADA_axis[1].push_back(new_point_set[0][i].dist_1);
+    }
+
+    for (int i = ADA_axis[0].size() - 1;i >= 0; i--) {
+        ADA_axis_inv[0].push_back(length - ADA_axis[0][i]);
+    }
+    for (int i = ADA_axis[1].size() - 1;i >= 0; i--) {
+        ADA_axis_inv[1].push_back(length - ADA_axis[1][i]);
+    }
+
+    for (int i = 1;i < ADA_vector[0].size(); i++) {
+        ADA_vector[0][i] = ADA_vector[0][i] + ADA_vector[0][i - 1];
+    }
+    for (int i = 1;i < ADA_vector[1].size(); i++) {
+        ADA_vector[1][i] = ADA_vector[1][i] + ADA_vector[1][i - 1];
     }
 }

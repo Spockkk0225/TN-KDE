@@ -9,7 +9,7 @@ struct Item {
     int num = 0;
     double parameters[para_size] = {0};
 //    vector<double> parameters{0,0,0,0,0};
-    
+
     Item operator +(const Item &rhs) {
         Item ret;
         ret.num = this->num + rhs.num;
@@ -18,7 +18,7 @@ struct Item {
         }
         return ret;
     }
-    
+
     Item operator -(const Item &rhs) {
         Item ret;
         ret.num = this->num - rhs.num;
@@ -27,7 +27,7 @@ struct Item {
         }
         return ret;
     }
-    
+
     Item& operator +=(const Item &rhs) {
         this->num += rhs.num;
         for (int i = 0;i < para_size; i++) {
@@ -35,7 +35,7 @@ struct Item {
         }
         return *this;
     }
-    
+
     Item& operator -=(const Item &rhs) {
         this->num -= rhs.num;
         for (int i = 0;i < para_size; i++) {
@@ -47,14 +47,14 @@ struct Item {
 
 struct Point {
     int edge_index;
-    
+
     double dist_1, dist_2;
     double dist;
     double time;
     double b_s, b_t;
-    
+
     Item item;
-    
+
     void InitItem(Param::Kernel kernel_type) {
         item.num = 1;
         if (kernel_type == Param::Triangular) {
@@ -63,13 +63,13 @@ struct Point {
             item.parameters[2] = dist_1 * time;
             item.parameters[3] = dist_2 * time;
             item.parameters[4] = time;
-            
+
         }   else if (kernel_type == Param::Exponential) {
             item.parameters[0] = exp(-dist_1 / b_s) * exp(+time / b_t);
             item.parameters[1] = exp(-dist_1 / b_s) * exp(-time / b_t);
             item.parameters[2] = exp(-dist_2 / b_s) * exp(+time / b_t);
             item.parameters[3] = exp(-dist_2 / b_s) * exp(-time / b_t);
-            
+
         }   else if (kernel_type == Param::Cosine) {
             item.parameters[0] = cos(dist_1 / b_s) * cos(time / b_t);
             item.parameters[1] = sin(dist_1 / b_s) * cos(time / b_t);
@@ -79,7 +79,7 @@ struct Point {
             item.parameters[5] = sin(dist_2 / b_s) * cos(time / b_t);
             item.parameters[6] = cos(dist_2 / b_s) * sin(time / b_t);
             item.parameters[7] = sin(dist_2 / b_s) * sin(time / b_t);
-            
+
         }   else {
             assert(false);
         }
@@ -107,17 +107,21 @@ struct SPNode_cmp {
 class Edge {
 public:
     double test = 0;
-    
+
+    // Lixel Sharing
+    double min_d_o_minus_c_o = INF;
+    double max_d_o_minus_c_o = -INF;
+
     int node_1, node_2;
     double length;
     double b_s, b_t;
     vector<Point> point_set;
-    
+
     int siz_t, siz_d;
     vector<double> time_axis, time_axis_inv;
     vector<double> dist_axis, dist_axis_inv;
     void InitAxis(Param::Kernel kernel_type);
-    
+
     // Solution Baseline
     void RQS_GetDistSum(int start_time, int end_time, double dist_q_c, double dist_q_d, vector<pair<double, double>> &q_p, bool on_edge);
 
@@ -126,7 +130,8 @@ public:
 
     virtual void Init(Param::Kernel kernel_type) = 0;
     virtual Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1) = 0;
-    
+    virtual void SubInit() = 0;
+
     // used for Dynamic Deep
     virtual void SetH(int h) {}
 
@@ -137,12 +142,14 @@ public:
     // useless, just implement the virtual function
     void Init(Param::Kernel kernel_type) { return; }
     Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1) { return Item(); }
+    void SubInit() { }
 };
 
 class RAS : public Edge {
 public:
     void Init(Param::Kernel kernel_type);
     Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1);
+    void SubInit() { }
 private:
     vector<vector<Item>> pre_sum;
     Item GetPreSum(int t1, int t2, int d1, int d2);
@@ -164,12 +171,13 @@ class RTS : public Edge {
 public:
     void Init(Param::Kernel kernel_type);
     Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1);
+    void SubInit() { }
 private:
     int tree_dist_root = -1;
     vector<TreeDist> tree_dist;
     vector<TreeTime> tree_time;
     Item GetSum(double ls, double rs, double lt, double rt);
-    
+
     void MergeSort(vector<Point> &t, vector<Point> &s1, vector<Point> &s2);
     int SpatialConstruct(int index, int l, int r, vector<Point> &point_set);
     int TemporalConstruct(int index, int l, int r, vector<Point> &point_set);
@@ -181,6 +189,7 @@ class RFS : public Edge {
 public:
     void Init(Param::Kernel kernel_type);
     Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1);
+    void SubInit();
 private:
     int timeline_index_L_1, timeline_index_R_1;
     int timeline_index_L_2, timeline_index_R_2;
@@ -202,6 +211,7 @@ class DRFS : public Edge {
 public:
     void Init(Param::Kernel kernel_type);
     Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1);
+    void SubInit();
 private:
     int H = 1;
     int oldH = 1;
@@ -209,7 +219,7 @@ private:
     int Hinsert = 1;
     double Dmin, Dmax;
     void SetH(int h);
-    
+
     int timeline_index_L_1, timeline_index_R_1;
     int timeline_index_L_2, timeline_index_R_2;
     vector<int> timeline;
@@ -220,6 +230,18 @@ private:
     int Build(int h, double l, double r);
     int Insert(int h, double l, double r, int root_l, double L, Item &item);
     Item Query(int h, double l, double r, int root_l, int root_r, double L, double R);
+};
+
+class ADA : public Edge {
+public:
+    void Init(Param::Kernel kernel_type);
+    Item GetDistSum(int start_time, int end_time, bool is_left, double dist_r, double dist_l = -1);
+    void SubInit();
+private:
+    vector<Point> new_point_set[2];
+    vector<Item> ADA_vector[2];
+    vector<double> ADA_axis[2], ADA_axis_inv[2];
+    Item GetPreSum(int d1, int d2, int idx);
 };
 
 #endif /* edge_hpp */
